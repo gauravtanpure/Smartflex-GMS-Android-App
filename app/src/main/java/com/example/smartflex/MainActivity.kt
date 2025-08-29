@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import android.view.View
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,6 +28,11 @@ class MainActivity : AppCompatActivity() {
         requestPermissionsIfNeeded()
 
         webView = findViewById(R.id.webview)
+
+//        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN
+//        // Remember that you should never show the action bar if the
+//        // status bar is hidden, so hide that too if necessary.
+//        actionBar?.hide()
 
         with(webView.settings) {
             javaScriptEnabled = true
