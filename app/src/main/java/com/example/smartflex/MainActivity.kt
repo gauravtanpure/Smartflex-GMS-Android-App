@@ -1,13 +1,19 @@
 package com.example.smartflex
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
+import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -52,11 +58,28 @@ class MainActivity : AppCompatActivity() {
             cacheMode = WebSettings.LOAD_DEFAULT
         }
 
-        webView.webViewClient = WebViewClient()
+        // Bridge so HTML can call into Kotlin (for the Retry button)
+        webView.addJavascriptInterface(object {
+            @JavascriptInterface
+            fun reloadApp() {
+                runOnUiThread { webView.loadUrl(APP_URL) }
+            }
+        }, "AndroidInterface")
+
+        // Handle errors → show our offline page instead of Chrome error
+        webView.webViewClient = object : WebViewClient() {
+            override fun onReceivedError(
+                view: WebView,
+                request: WebResourceRequest,
+                error: WebResourceError
+            ) {
+                super.onReceivedError(view, request, error)
+                view.loadUrl("file:///android_asset/no_internet.html")
+            }
+        }
 
         webView.webChromeClient = object : WebChromeClient() {
-
-            // 🔑 Handle file chooser (profile picture upload)
+            // Handle file chooser (profile picture upload)
             override fun onShowFileChooser(
                 webView: WebView?,
                 filePathCallback: ValueCallback<Array<Uri>>?,
@@ -64,13 +87,13 @@ class MainActivity : AppCompatActivity() {
             ): Boolean {
                 this@MainActivity.filePathCallback = filePathCallback
                 val intent = fileChooserParams?.createIntent()
-                try {
+                return try {
                     fileChooserLauncher.launch(intent)
-                } catch (e: Exception) {
+                    true
+                } catch (_: Exception) {
                     this@MainActivity.filePathCallback = null
-                    return false
+                    false
                 }
-                return true
             }
 
             override fun onPermissionRequest(request: PermissionRequest) {
@@ -81,15 +104,27 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        webView.loadUrl(APP_URL)
+        // If already offline at launch, show offline page
+        if (isOnline()) {
+            webView.loadUrl(APP_URL)
+        } else {
+            webView.loadUrl("file:///android_asset/no_internet.html")
+        }
+    }
+
+    private fun isOnline(): Boolean {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val net = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(net) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun requestPermissionsIfNeeded() {
         val permissions = arrayOf(
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_EXTERNAL_STORAGE
+            Manifest.permission.READ_MEDIA_IMAGES,       // Android 13+
+            Manifest.permission.READ_EXTERNAL_STORAGE    // Older devices
         )
 
         val missing = permissions.filter {
