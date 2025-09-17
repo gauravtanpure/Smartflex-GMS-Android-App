@@ -25,7 +25,7 @@ import androidx.core.content.ContextCompat
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
-    private val APP_URL = "https://smartflex-gms.vercel.app/"
+    private val APP_URL = "https://sf.prasaar.co/"
 
     // For file chooser
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
